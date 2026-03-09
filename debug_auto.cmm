@@ -1,0 +1,131 @@
+; TRACE32 Auto Debug Script for TC364DP
+; TC375_AS422_2_40_0_Init 의 동작하는 스크립트를 기반으로 TC364DP CPU 및 경로만 변경
+
+; 이전 실행에서 파일 핸들이 열린 채 남아있을 수 있으므로 먼저 강제 닫기
+; (이미 닫혀있어도 에러 없이 무시됨)
+CLOSE #1
+CLOSE #2
+
+OPEN #2 "C:\Users\swyoon\Desktop\MCAL TEST\TC364L_AS422_2_40_0_Init\t32_debug_log.txt" /Create
+WRITE #2 "Starting TRACE32 Debug Script..."
+CLOSE #2
+
+SYStem.RESet
+SYStem.CPU TC364DP
+SYStem.Up
+
+IF !SYStem.Up()
+(
+   OPEN #2 "C:\Users\swyoon\Desktop\MCAL TEST\TC364L_AS422_2_40_0_Init\t32_debug_log.txt" /Append
+   WRITE #2 "FAIL: Could not connect to TC364 board! Check hardware/cabling."
+   CLOSE #2
+   QUIT
+)
+
+OPEN #2 "C:\Users\swyoon\Desktop\MCAL TEST\TC364L_AS422_2_40_0_Init\t32_debug_log.txt" /Append
+WRITE #2 "Connected to board successfully. Flashing ELF..."
+CLOSE #2
+
+DO "C:\T32\demo\tricore\flash\tc36x.cmm" CPU=TC364DP PREPAREONLY
+FLASH.ReProgram ALL /Erase
+Data.LOAD.Elf "C:\Users\swyoon\Desktop\MCAL TEST\TC364L_AS422_2_40_0_Init\Debug\TC364L_AS422_2_40_0_Init.elf"
+FLASH.ReProgram off
+
+Break.RESet
+Break.Set Toggle_LED1
+
+OPEN #2 "C:\Users\swyoon\Desktop\MCAL TEST\TC364L_AS422_2_40_0_Init\t32_debug_log.txt" /Append
+WRITE #2 "Flashing done! Booting and waiting for Toggle_LED1 function..."
+CLOSE #2
+
+RunTime.RESet
+Go
+WAIT !run() 5.s
+IF run()
+(
+   Break
+   OPEN #2 "C:\Users\swyoon\Desktop\MCAL TEST\TC364L_AS422_2_40_0_Init\t32_debug_log.txt" /Append
+   WRITE #2 "TIMEOUT: Toggle_LED1 breakpoint not hit."
+   CLOSE #2
+   QUIT
+)
+
+OPEN #2 "C:\Users\swyoon\Desktop\MCAL TEST\TC364L_AS422_2_40_0_Init\t32_debug_log.txt" /Append
+WRITE #2 "SUCCESS: 1st hit at Toggle_LED1!"
+CLOSE #2
+
+; 1st hit -> 2nd hit 간격 측정 (약 100ms 기대)
+RunTime.Init
+Go
+WAIT !run() 5.s
+IF run()
+(
+   Break
+   OPEN #2 "C:\Users\swyoon\Desktop\MCAL TEST\TC364L_AS422_2_40_0_Init\t32_debug_log.txt" /Append
+   WRITE #2 "TIMEOUT: Toggle_LED1 breakpoint not hit 2nd time."
+   CLOSE #2
+   QUIT
+)
+
+&time_diff_1=RunTime.LASTRUN()
+OPEN #2 "C:\Users\swyoon\Desktop\MCAL TEST\TC364L_AS422_2_40_0_Init\t32_debug_log.txt" /Append
+WRITE #2 "SUCCESS: 2nd hit at Toggle_LED1!"
+WRITE #2 "  -> Elapsed Time (expected ~100ms): " &time_diff_1
+CLOSE #2
+
+; 2nd hit -> 3rd hit 간격 측정
+RunTime.Init
+Go
+WAIT !run() 5.s
+IF run()
+(
+   Break
+   OPEN #2 "C:\Users\swyoon\Desktop\MCAL TEST\TC364L_AS422_2_40_0_Init\t32_debug_log.txt" /Append
+   WRITE #2 "TIMEOUT: Toggle_LED1 breakpoint not hit 3rd time."
+   CLOSE #2
+   QUIT
+)
+
+&time_diff_2=RunTime.LASTRUN()
+OPEN #2 "C:\Users\swyoon\Desktop\MCAL TEST\TC364L_AS422_2_40_0_Init\t32_debug_log.txt" /Append
+WRITE #2 "SUCCESS: 3rd hit at Toggle_LED1!"
+WRITE #2 "  -> Elapsed Time (expected ~100ms): " &time_diff_2
+CLOSE #2
+
+; --- LED2 Test (1000ms interval) ---
+OPEN #2 "C:\Users\swyoon\Desktop\MCAL TEST\TC364L_AS422_2_40_0_Init\t32_debug_log.txt" /Append
+WRITE #2 "Now Testing LED2 (1000ms interval)..."
+CLOSE #2
+
+Break.RESet
+Break.Set Toggle_LED2
+
+&i=0.
+WHILE &i<10.
+(
+    RunTime.Init
+    Go
+    WAIT !run() 5.s
+    IF run()
+    (
+        Break
+        OPEN #2 "C:\Users\swyoon\Desktop\MCAL TEST\TC364L_AS422_2_40_0_Init\t32_debug_log.txt" /Append
+        WRITE #2 "TIMEOUT: Toggle_LED2 breakpoint not hit during LED2 test."
+        CLOSE #2
+        QUIT
+    )
+
+    &time_diff=RunTime.LASTRUN()
+    OPEN #2 "C:\Users\swyoon\Desktop\MCAL TEST\TC364L_AS422_2_40_0_Init\t32_debug_log.txt" /Append
+    WRITE #2 "  -> LED2 Test Tick " FORMAT.DECIMAL(0., &i+1.) ": " &time_diff
+    CLOSE #2
+
+    &i=&i+1.
+)
+
+OPEN #2 "C:\Users\swyoon\Desktop\MCAL TEST\TC364L_AS422_2_40_0_Init\t32_debug_log.txt" /Append
+WRITE #2 "SUCCESS: Finished 10 ticks. LED2 successfully toggles every ~1000ms!"
+WRITE #2 "Automation Complete."
+CLOSE #2
+
+QUIT
